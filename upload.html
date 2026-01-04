@@ -6,38 +6,12 @@
     <title>上传照片生成圣诞树</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body {
-            font-family: 'Times New Roman', serif;
-            text-align: center;
-            padding: 20px;
-            background: #000;
-            color: #d4af37;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .box {
-            border: 2px dashed #d4af37;
-            padding: 40px;
-            border-radius: 10px;
-            background: rgba(20, 20, 20, 0.8);
-            max-width: 90%;
-        }
+        /* ... 样式保持不变 ... */
+        body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #000; color: #d4af37; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { border: 2px dashed #d4af37; padding: 40px; border-radius: 10px; background: rgba(20, 20, 20, 0.8); max-width: 90%; }
         h1 { margin-bottom: 30px; font-weight: normal; }
         input { margin: 20px 0; color: #fff; }
-        button {
-            padding: 12px 30px;
-            background: #d4af37;
-            color: #000;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
+        button { padding: 12px 30px; background: #d4af37; color: #000; border: none; font-weight: bold; cursor: pointer; font-size: 16px; border-radius: 5px; transition: 0.3s; }
         button:disabled { background: #666; cursor: not-allowed; }
         #status { margin-top: 20px; font-size: 14px; color: #aaa; }
     </style>
@@ -56,14 +30,13 @@
 
     <script>
         // ==========================================
-        // 【重要】请在这里再次填入你的 Supabase 信息
+        // 🔴 记得在这里重新填入你的 Supabase 信息
         // ==========================================
         const projectUrl = 'https://ryqhjxokcjlhdfxmqzjm.supabase.co';
         const projectKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5cWhqeG9rY2psaGRmeG1xemptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1Mjk4NjMsImV4cCI6MjA4MzEwNTg2M30.8ofjF_8g0wtkTZJKAcVd44mp0OS9RKQFCGC7YB5C_4g';
         // ==========================================
 
-        // 【核心修复】这里我们改名叫 myClient，不再叫 supabase 了
-        // 这样就不会和上面的库冲突了
+        // ✅ 【修改点 1】改名叫 myClient，不再叫 supabase
         const myClient = supabase.createClient(projectUrl, projectKey);
 
         async function uploadFiles() {
@@ -81,7 +54,6 @@
             btn.textContent = "正在上传中...";
             status.textContent = "准备上传 " + files.length + " 张照片...";
 
-            // 生成随机订单号
             const orderId = Math.random().toString(36).slice(2, 10);
 
             try {
@@ -92,7 +64,7 @@
 
                     status.textContent = `正在上传第 ${i + 1} / ${files.length} 张...`;
 
-                    // 【核心修复】这里也要记得用 myClient 来调用
+                    // ✅ 【修改点 2】这里使用 myClient 来上传
                     const { data, error } = await myClient.storage
                         .from('images')
                         .upload(fileName, file);
