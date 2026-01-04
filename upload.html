@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上传照片生成圣诞树</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Times New Roman', serif;
+            text-align: center;
+            padding: 20px;
+            background: #000;
+            color: #d4af37;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .box {
+            border: 2px dashed #d4af37;
+            padding: 40px;
+            border-radius: 10px;
+            background: rgba(20, 20, 20, 0.8);
+            max-width: 90%;
+        }
+        h1 { margin-bottom: 30px; font-weight: normal; }
+        input { margin: 20px 0; color: #fff; }
+        button {
+            padding: 12px 30px;
+            background: #d4af37;
+            color: #000;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        button:disabled { background: #666; cursor: not-allowed; }
+        #status { margin-top: 20px; font-size: 14px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>上传照片生成圣诞树</h1>
+        <p>支持高清原图，生成后发送链接给好友</p>
+
+        <input type="file" id="fileInput" multiple accept="image/*">
+        <br>
+        <button id="uploadBtn" onclick="uploadFiles()">✨ 生成我的链接 ✨</button>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 【重要】请在这里填入你的 Supabase 信息
+        // ==========================================
+        const projectUrl = 'https://ryqhjxokcjlhdfxmqzjm.supabase.co';
+        const projectKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ5cWhqeG9rY2psaGRmeG1xemptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc1Mjk4NjMsImV4cCI6MjA4MzEwNTg2M30.8ofjF_8g0wtkTZJKAcVd44mp0OS9RKQFCGC7YB5C_4g';
+        // ==========================================
+
+        // [修复点] 我们把变量名改成 myClient，避免和库的名字 supabase 冲突
+        const myClient = supabase.createClient(projectUrl, projectKey);
+
+        async function uploadFiles() {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('status');
+            const btn = document.getElementById('uploadBtn');
+            const files = fileInput.files;
+
+            if (files.length === 0) {
+                status.textContent = "请先选择照片！";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = "正在上传中...";
+            status.textContent = "准备上传 " + files.length + " 张照片...";
+
+            // 生成随机订单号
+            const orderId = Math.random().toString(36).slice(2, 10);
+
+            try {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${orderId}/${Date.now()}_${i}.${fileExt}`;
+
+                    status.textContent = `正在上传第 ${i + 1} / ${files.length} 张...`;
+
+                    // [修复点] 这里也要用新名字 myClient 来调用
+                    const { data, error } = await myClient.storage
+                        .from('images')
+                        .upload(fileName, file);
+
+                    if (error) throw error;
+                }
+
+                status.textContent = "上传成功！正在跳转...";
+                window.location.href = `/tree/${orderId}`;
+
+            } catch (error) {
+                console.error(error);
+                status.textContent = "上传失败: " + error.message;
+                btn.disabled = false;
+                btn.textContent = "重试";
+            }
+        }
+    </script>
+</body>
+</html>
