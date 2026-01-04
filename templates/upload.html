@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>上传你的新年照片</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #000; color: #d4af37; }
+        .box { border: 2px dashed #d4af37; padding: 40px; border-radius: 10px; display: inline-block; }
+        input { margin: 20px; }
+        button { padding: 10px 20px; background: #d4af37; border: none; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>上传照片生成圣诞树</h1>
+        <p>请选择你要展示的照片（支持多选）</p>
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="photos" multiple accept="image/*" required>
+            <br>
+            <button type="submit">生成我的链接</button>
+        </form>
+    </div>
+</body>
+</html>
