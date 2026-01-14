@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grand Luxury Tree (Star Growth Animation)</title>
+    <title>Grand Luxury Tree (Supabase Connected)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Times New Roman', serif; cursor: none; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; }
@@ -110,7 +110,7 @@
 
     <div id="loader">
         <div class="spinner"></div>
-        <div class="loader-text">Preparing Surprise...</div>
+        <div class="loader-text">Loading Magic...</div>
     </div>
 
     <div id="hand-cursor"></div>
@@ -137,6 +137,12 @@
         import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
         import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+
+        // ==========================================
+        // 核心修改：接收来自 Flask/Supabase 的照片数据
+        // ==========================================
+        const photoUrls = {{ photo_list | tojson }};
+        console.log("Supabase Photos Loaded:", photoUrls);
 
         const CONFIG = {
             colors: {
@@ -183,7 +189,10 @@
 
         const photoPositions = [];
 
-        const bgm = new Audio('music.mp3');
+        // 注意：如果你没有 music.mp3，这里会报错，建议确保根目录有这个文件
+        // 或者把这一行注释掉
+        const bgm = new Audio('/static/music.mp3');
+        // 尝试兼容路径，如果是直接放在static下
         bgm.loop = true;
         bgm.volume = 0.6;
 
@@ -198,23 +207,40 @@
             createGalaxyFloor();
 
             createDefaultTextPhoto();
-            loadLocalPhotos();
+
+            // === 修改：调用新的加载函数 ===
+            loadSupabasePhotos();
+
             setupPostProcessing();
             setupEvents();
 
-            bgm.play().catch(() => {
-                const unlockAudio = () => {
-                    bgm.play();
-                    window.removeEventListener('click', unlockAudio);
-                    window.removeEventListener('touchstart', unlockAudio);
-                    window.removeEventListener('keydown', unlockAudio);
-                };
-                window.addEventListener('click', unlockAudio);
-                window.addEventListener('touchstart', unlockAudio);
-                window.addEventListener('keydown', unlockAudio);
-            });
+            // 音乐自动播放处理
+            const playMusic = () => {
+                bgm.play().then(() => {
+                    // 播放成功
+                }).catch((e) => {
+                    console.log("Waiting for user interaction to play music");
+                });
+            };
 
-            await initMediaPipe();
+            window.addEventListener('click', () => {
+                playMusic();
+            }, { once: true });
+
+            window.addEventListener('touchstart', () => {
+                playMusic();
+            }, { once: true });
+
+            // 尝试初始化摄像头，如果失败也不要卡死页面
+            try {
+                await initMediaPipe();
+            } catch (e) {
+                console.log("Webcam/MediaPipe init failed (maybe no camera), continuing...", e);
+                // 即使没有摄像头，也允许鼠标操作（虽然代码里主要写的是手势，但至少不白屏）
+                STATE.initialExplosionDone = true; // 强制解锁
+                instructionEl.innerText = "No Webcam Detected - Auto Mode";
+                instructionEl.classList.remove('blink-text');
+            }
 
             const loader = document.getElementById('loader');
             loader.style.opacity = 0;
@@ -331,9 +357,8 @@
             const staticPositions = [];
             const staticColors = [];
 
-            // 银白色以模拟雪
-            const insideColor = new THREE.Color(0xffffff); // 纯白中心
-            const outsideColor = new THREE.Color(0xcccccc); // 银灰色边缘
+            const insideColor = new THREE.Color(0xffffff);
+            const outsideColor = new THREE.Color(0xcccccc);
 
             const purpleColor = new THREE.Color(0x8A2BE2).multiplyScalar(0.5);
             const lightBlueColor = new THREE.Color(0x88ccff).multiplyScalar(0.6);
@@ -351,14 +376,12 @@
                 const bgProbability = 0.6 + rNorm * 0.35;
 
                 if (randType > bgProbability) {
-                    // 银色闪烁雪粒
                     goldPositions.push(x, y, z);
                     const c = insideColor.clone().lerp(outsideColor, radius / 55);
                     c.multiplyScalar(2.0);
                     goldColors.push(c.r, c.g, c.b);
                     goldPhases.push(Math.random() * Math.PI * 2);
                 } else {
-                    // 背景粒子 (紫色/蓝色)
                     if (Math.random() < 0.15) {
                         staticPositions.push(x, y, z);
                         let c;
@@ -409,7 +432,6 @@
             mainGroup.add(galaxyStaticSystem);
         }
 
-        // 更新闪烁动画 - 已调低亮度以减少散光
         function updateGalaxy() {
             if (!galaxyGoldSystem) return;
 
@@ -420,10 +442,6 @@
 
             for (let i = 0; i < colors.count; i++) {
                 const sineVal = Math.sin(time * 4.0 + phases[i]);
-
-                // --- 修改处：大幅降低亮度倍率 ---
-                // 原来是 1.0 + ... * 12.0 (太亮了)
-                // 现在改为 0.4 (更低的基础亮度) + ... * 4.0 (更低的峰值亮度)
                 const brightness = 0.4 + Math.pow((sineVal + 1.0) / 2.0, 2.0) * 4.0;
 
                 const r = baseColors.getX(i);
@@ -578,22 +596,31 @@
             }
         }
 
-        function loadLocalPhotos() {
+        // ==========================================
+        // 修改：加载 Supabase 的照片
+        // ==========================================
+        function loadSupabasePhotos() {
             const textureLoader = new THREE.TextureLoader();
-            const maxPhotos = 25;
 
-            for (let i = 1; i <= maxPhotos; i++) {
-                const fileName = `photo${i}.jpg`;
+            // 如果列表为空，可以放几个占位（可选）
+            if (!photoUrls || photoUrls.length === 0) {
+                console.log("No photos found in Supabase.");
+                return;
+            }
+
+            photoUrls.forEach(url => {
                 textureLoader.load(
-                    fileName,
+                    url,
                     (texture) => {
                         texture.colorSpace = THREE.SRGBColorSpace;
                         addPhotoToScene(texture);
                     },
                     undefined,
-                    (err) => { }
+                    (err) => {
+                        console.warn("Failed to load photo:", url);
+                    }
                 );
-            }
+            });
         }
 
         function createDefaultTextPhoto() {
@@ -642,8 +669,6 @@
         function setupPostProcessing() {
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            // --- 修改处：提高阈值，减少散光 ---
-            // 原来是 0.7，现在提高到 0.85，这样只有最亮的时候才有光晕
             bloomPass.threshold = 0.85;
             bloomPass.strength = 0.6;
             bloomPass.radius = 0.02;
@@ -783,7 +808,7 @@
             const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
             handLandmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
-                    modelAssetPath: `hand_landmarker.task`,
+                    modelAssetPath: `https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task`,
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
