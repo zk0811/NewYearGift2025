@@ -172,6 +172,9 @@
         let blueSnowSystem;
         let treeTopStar;
 
+        let galaxyGoldSystem;
+        let galaxyStaticSystem;
+
         let clock = new THREE.Clock();
         let handLandmarker, video;
         const statusEl = document.getElementById('status-indicator');
@@ -192,8 +195,7 @@
             createParticles();
             createDust();
             createSnow();
-            createGroundSnow();
-            createBlueGroundSnow();
+            createGalaxyFloor();
 
             createDefaultTextPhoto();
             loadLocalPhotos();
@@ -319,87 +321,118 @@
             scene.add(snowSystem);
         }
 
-        function createGroundSnow() {
-            const particleCount = 15000;
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const baseHeight = -12.5;
+        function createGalaxyFloor() {
+            const particleCount = 8000;
 
-            for(let i = 0; i < particleCount; i++) {
-                const theta = Math.random() * Math.PI * 2;
-                const angleNoise = Math.sin(theta * 3.5) * 0.2 + Math.cos(theta * 5.2) * 0.15 + Math.sin(theta * 2.1) * 0.1;
-                const maxR = 17 * (1.0 + angleNoise);
-                const rNormalized = Math.pow(Math.random(), 2.5);
-                const r = rNormalized * maxR;
-                const x = r * Math.cos(theta);
-                const z = r * Math.sin(theta);
-                let pileHeight = (1.0 - rNormalized) * 4.0;
-                pileHeight += (Math.random() - 0.5) * 0.4;
-                pileHeight = Math.max(0, pileHeight);
-                const y = baseHeight + pileHeight;
-                positions.push(x, y, z);
+            const goldPositions = [];
+            const goldColors = [];
+            const goldPhases = [];
+
+            const staticPositions = [];
+            const staticColors = [];
+
+            // 银白色以模拟雪
+            const insideColor = new THREE.Color(0xffffff); // 纯白中心
+            const outsideColor = new THREE.Color(0xcccccc); // 银灰色边缘
+
+            const purpleColor = new THREE.Color(0x8A2BE2).multiplyScalar(0.5);
+            const lightBlueColor = new THREE.Color(0x88ccff).multiplyScalar(0.6);
+
+            for (let i = 0; i < particleCount; i++) {
+                const radius = Math.sqrt(Math.random()) * 55;
+                const angle = Math.random() * Math.PI * 2;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+                const y = -12.5 + (Math.random() - 0.5) * 2.0;
+
+                const randType = Math.random();
+                const rNorm = radius / 55;
+
+                const bgProbability = 0.6 + rNorm * 0.35;
+
+                if (randType > bgProbability) {
+                    // 银色闪烁雪粒
+                    goldPositions.push(x, y, z);
+                    const c = insideColor.clone().lerp(outsideColor, radius / 55);
+                    c.multiplyScalar(2.0);
+                    goldColors.push(c.r, c.g, c.b);
+                    goldPhases.push(Math.random() * Math.PI * 2);
+                } else {
+                    // 背景粒子 (紫色/蓝色)
+                    if (Math.random() < 0.15) {
+                        staticPositions.push(x, y, z);
+                        let c;
+                        if (randType < 0.25) c = purpleColor;
+                        else c = lightBlueColor;
+
+                        staticColors.push(c.r, c.g, c.b);
+                    }
+                }
             }
 
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            const goldGeo = new THREE.BufferGeometry();
+            goldGeo.setAttribute('position', new THREE.Float32BufferAttribute(goldPositions, 3));
+            goldGeo.setAttribute('color', new THREE.Float32BufferAttribute(goldColors, 3));
+            goldGeo.setAttribute('baseColor', new THREE.Float32BufferAttribute(goldColors, 3));
+            goldGeo.setAttribute('phase', new THREE.Float32BufferAttribute(goldPhases, 1));
 
-            const material = new THREE.PointsMaterial({
+            const goldMat = new THREE.PointsMaterial({
+                size: 1.5,
+                map: createSnowTexture(),
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.9,
+                sizeAttenuation: true
+            });
+
+            galaxyGoldSystem = new THREE.Points(goldGeo, goldMat);
+            mainGroup.add(galaxyGoldSystem);
+
+            const staticGeo = new THREE.BufferGeometry();
+            staticGeo.setAttribute('position', new THREE.Float32BufferAttribute(staticPositions, 3));
+            staticGeo.setAttribute('color', new THREE.Float32BufferAttribute(staticColors, 3));
+
+            const staticMat = new THREE.PointsMaterial({
                 size: 1.2,
                 map: createSnowTexture(),
-                transparent: true,
-                opacity: 0.85,
-                blending: THREE.NormalBlending,
                 depthWrite: false,
-                color: 0xffffff
+                blending: THREE.AdditiveBlending,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                sizeAttenuation: true
             });
 
-            const groundSnow = new THREE.Points(geometry, material);
-            mainGroup.add(groundSnow);
+            galaxyStaticSystem = new THREE.Points(staticGeo, staticMat);
+            mainGroup.add(galaxyStaticSystem);
         }
 
-        function createBlueGroundSnow() {
-            const particleCount = 250;
-            const geometry = new THREE.BufferGeometry();
-            const positions = [];
-            const colors = [];
-            const phases = [];
-            const baseHeight = -12.5;
-            const blueColor = new THREE.Color(0x66ccff);
+        // 更新闪烁动画 - 已调低亮度以减少散光
+        function updateGalaxy() {
+            if (!galaxyGoldSystem) return;
 
-            for(let i = 0; i < particleCount; i++) {
-                const theta = Math.random() * Math.PI * 2;
-                const angleNoise = Math.sin(theta * 3.5) * 0.2 + Math.cos(theta * 5.2) * 0.15 + Math.sin(theta * 2.1) * 0.1;
-                const maxR = 17 * (1.0 + angleNoise);
-                const rNormalized = Math.pow(Math.random(), 2.5);
-                const r = rNormalized * maxR;
-                const x = r * Math.cos(theta);
-                const z = r * Math.sin(theta);
-                let pileHeight = (1.0 - rNormalized) * 4.0;
-                pileHeight += (Math.random() - 0.5) * 0.4;
-                pileHeight = Math.max(0, pileHeight);
-                const y = baseHeight + pileHeight + 0.15;
+            const colors = galaxyGoldSystem.geometry.attributes.color;
+            const baseColors = galaxyGoldSystem.geometry.attributes.baseColor;
+            const phases = galaxyGoldSystem.geometry.attributes.phase.array;
+            const time = clock.elapsedTime;
 
-                positions.push(x, y, z);
-                colors.push(blueColor.r, blueColor.g, blueColor.b);
-                phases.push(Math.random() * Math.PI * 2);
+            for (let i = 0; i < colors.count; i++) {
+                const sineVal = Math.sin(time * 4.0 + phases[i]);
+
+                // --- 修改处：大幅降低亮度倍率 ---
+                // 原来是 1.0 + ... * 12.0 (太亮了)
+                // 现在改为 0.4 (更低的基础亮度) + ... * 4.0 (更低的峰值亮度)
+                const brightness = 0.4 + Math.pow((sineVal + 1.0) / 2.0, 2.0) * 4.0;
+
+                const r = baseColors.getX(i);
+                const g = baseColors.getY(i);
+                const b = baseColors.getZ(i);
+
+                colors.setXYZ(i, r * brightness, g * brightness, b * brightness);
             }
-
-            geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            geometry.setAttribute('phase', new THREE.Float32BufferAttribute(phases, 1));
-
-            const material = new THREE.PointsMaterial({
-                size: 4.0,
-                map: createSnowTexture(),
-                transparent: true,
-                opacity: 1.0,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-                vertexColors: true,
-                toneMapped: false
-            });
-
-            blueSnowSystem = new THREE.Points(geometry, material);
-            mainGroup.add(blueSnowSystem);
+            colors.needsUpdate = true;
         }
 
         function updateBlueSnow() {
@@ -545,32 +578,22 @@
             }
         }
 
-        // [修改] 新的加载函数，直接使用后端传来的 photo_list
         function loadLocalPhotos() {
-            // 这里用 Jinja2 语法接收 Python 传来的列表，如果没有就为空
-            const photoUrls = {{ photo_list | tojson | default([]) }};
-
             const textureLoader = new THREE.TextureLoader();
+            const maxPhotos = 25;
 
-            if (photoUrls.length === 0) {
-                console.log("没有上传照片，使用默认模式");
-                return;
-            }
-
-            // 遍历所有链接进行加载
-            photoUrls.forEach(url => {
-                // 允许跨域加载图片
-                textureLoader.setCrossOrigin('anonymous');
+            for (let i = 1; i <= maxPhotos; i++) {
+                const fileName = `photo${i}.jpg`;
                 textureLoader.load(
-                    url,
+                    fileName,
                     (texture) => {
                         texture.colorSpace = THREE.SRGBColorSpace;
                         addPhotoToScene(texture);
                     },
                     undefined,
-                    (err) => { console.error("图片加载失败:", err); }
+                    (err) => { }
                 );
-            });
+            }
         }
 
         function createDefaultTextPhoto() {
@@ -591,14 +614,12 @@
             const frameMat = new THREE.MeshStandardMaterial({ color: CONFIG.colors.champagneGold, metalness: 1.0 });
             const photoGeo = new THREE.PlaneGeometry(1.2, 1.2);
 
-            // [修改] 降低亮度，移除自发光，以抵消高曝光
             const photoMat = new THREE.MeshStandardMaterial({
                 map: texture,
                 side: THREE.FrontSide,
-                roughness: 0.8, // 保持高粗糙度，减少镜面反射
-                metalness: 0.0, // 保持非金属
-                color: 0xcccccc, // 将底色改为浅灰，直接降低反射率
-                // 移除所有自发光属性
+                roughness: 0.8,
+                metalness: 0.0,
+                color: 0xcccccc,
             });
 
             const group = new THREE.Group();
@@ -621,7 +642,11 @@
         function setupPostProcessing() {
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.7; bloomPass.strength = 0.5; bloomPass.radius = 0.4;
+            // --- 修改处：提高阈值，减少散光 ---
+            // 原来是 0.7，现在提高到 0.85，这样只有最亮的时候才有光晕
+            bloomPass.threshold = 0.85;
+            bloomPass.strength = 0.6;
+            bloomPass.radius = 0.02;
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
             composer.addPass(bloomPass);
@@ -758,7 +783,7 @@
             const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
             handLandmarker = await HandLandmarker.createFromOptions(vision, {
                 baseOptions: {
-                    modelAssetPath: `/static/hand_landmarker.task`,
+                    modelAssetPath: `hand_landmarker.task`,
                     delegate: "GPU"
                 },
                 runningMode: "VIDEO",
@@ -937,6 +962,8 @@
             updateSnow();
             updateBlueSnow();
             updateTopStar(dt);
+
+            updateGalaxy();
 
             if (STATE.mode !== 'FOCUS') {
                 if (STATE.hand.detected) {
