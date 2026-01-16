@@ -164,7 +164,8 @@
                 jade: 0x00FF00
             },
             particles: {
-                count: 5500,
+                // --- 修改 1：减少主体/内部粒子数量 (原5500) ---
+                count: 3500,
                 dustCount: 1500,
                 treeHeight: 26,
                 treeRadius: 9
@@ -441,7 +442,8 @@
             }
 
             // 2. 底部填充
-            const bottomFillerCount = 1800;
+            // --- 修改 2：稍微减少底部填充粒子 (原1800) ---
+            const bottomFillerCount = 1500;
             for(let i=0; i<bottomFillerCount; i++) {
                 const rand = Math.random();
                 let mesh, type;
@@ -457,7 +459,8 @@
             // 3. 内部填充粒子 (已移除)
 
             // 4. 树冠表面铺满粒子
-            const canopySurfaceCount = 6000;
+            // --- 修改 3：微调减少表面粒子 (原6000) ---
+            const canopySurfaceCount = 5600;
             for(let i=0; i<canopySurfaceCount; i++) {
                 const rand = Math.random();
                 let mesh, type;
@@ -534,8 +537,11 @@
                 color: CONFIG.colors.gold, roughness: 0.2, metalness: 1.0
             });
             const photoGeo = new THREE.PlaneGeometry(1.3, 1.3);
-            const photoMat = new THREE.MeshStandardMaterial({
-                map: texture, side: THREE.FrontSide, roughness: 0.5, metalness: 0
+
+            // --- 修改处：改用 MeshBasicMaterial，防止照片过曝 ---
+            const photoMat = new THREE.MeshBasicMaterial({
+                map: texture,
+                side: THREE.FrontSide
             });
 
             const group = new THREE.Group();
