@@ -16,22 +16,14 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 10; pointer-events: none;
             display: flex; flex-direction: column;
-            align-items: center;
-            padding-top: 40px;
+            /* 保持左上角布局，用于图片 */
+            align-items: flex-start;
+            padding-top: 30px;
+            padding-left: 120px;
         }
 
         h1 {
-            font-family: 'Zhi Mang Xing', cursive;
-            font-size: 6rem;
             margin: 0;
-            font-weight: normal;
-            letter-spacing: 10px;
-            color: #ff0000;
-            -webkit-text-stroke: 2px #ffd700;
-            text-shadow:
-                4px 4px 0px #5c0000,
-                0 0 20px rgba(255, 215, 0, 0.4);
-            text-transform: none;
             padding-bottom: 10px;
             filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
         }
@@ -48,6 +40,7 @@
             padding: 5px 15px;
             border-radius: 20px;
             border: 1px solid #d4af37;
+            margin-left: 10px;
         }
 
         #hand-cursor {
@@ -86,7 +79,12 @@
         .loader-text { color: #d4af37; margin-top: 20px; letter-spacing: 2px; font-size: 14px; font-weight: bold;}
 
         .instruction-panel {
-            margin-top: auto; margin-bottom: 50px;
+            /* --- 修改处：强制绝对定位居中，忽略父容器padding --- */
+            position: absolute;
+            bottom: 50px;
+            left: 50vw; /* 使用视口宽度的一半定位 */
+            transform: translateX(-50%);
+
             text-align: center; color: rgba(255,255,255,0.9);
             font-size: 14px; letter-spacing: 1px;
             background: rgba(80, 0, 0, 0.7);
@@ -133,7 +131,8 @@
     <div id="canvas-container"></div>
 
     <div id="ui-layer">
-        <h1>恭喜发财</h1>
+        <h1><img src="/static/1.jpg" alt="Logo" style="height: 300px; width: auto; display: block;"></h1>
+
         <div id="status-indicator"></div>
         <div class="instruction-panel">
             <div id="dynamic-instruction" class="blink-text">🖐 张开手掌 聚拢财气 (Open Hand)</div>
@@ -165,7 +164,7 @@
                 jade: 0x00FF00
             },
             particles: {
-                count: 1800,
+                count: 5500,
                 dustCount: 1500,
                 treeHeight: 26,
                 treeRadius: 9
@@ -188,7 +187,6 @@
         let coinTexture, envelopeTexture;
         let treeCoinMat;
         let rainCoinMat;
-        // let goldMat, redMat, envMat;
 
         let particleSystem = [];
 
@@ -219,8 +217,6 @@
             createParticles();
             createDust();
             create3DGoldRain();
-
-            //createTreasureBase(); // 彻底移除地面金山
 
             createDefaultTextPhoto();
             loadSupabasePhotos();
@@ -278,7 +274,7 @@
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
             renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 0.8;
+            renderer.toneMappingExposure = 0.6;
 
             container.appendChild(renderer.domElement);
 
@@ -299,12 +295,12 @@
             innerLight.position.set(0, 5, 0);
             mainGroup.add(innerLight);
 
-            const spotRed = new THREE.SpotLight(CONFIG.colors.brightRed, 800);
-            spotRed.position.set(-30, 40, 20);
+            const spotRed = new THREE.SpotLight(CONFIG.colors.brightRed, 200);
+            spotRed.position.set(-40, 50, 30);
             scene.add(spotRed);
 
-            const spotGold = new THREE.SpotLight(CONFIG.colors.gold, 1000);
-            spotGold.position.set(30, 40, 40);
+            const spotGold = new THREE.SpotLight(CONFIG.colors.gold, 300);
+            spotGold.position.set(40, 50, 50);
             scene.add(spotGold);
         }
 
@@ -354,7 +350,7 @@
                 metalness: 0.7,
                 roughness: 0.2,
                 color: 0xffffff,
-                emissive: 0x664411
+                emissive: 0x775522
             });
 
             rainCoinMat = new THREE.MeshStandardMaterial({
@@ -390,7 +386,8 @@
                 goldRainInstancedMesh.setMatrixAt(i, dummy.matrix);
 
                 rainData.push({
-                    velocity: -(Math.random() * 0.03 + 0.01),
+                    // 保持加速后的金币雨速度
+                    velocity: -(Math.random() * 0.25 + 0.15),
                     rotSpeedX: (Math.random() - 0.5) * 0.04,
                     rotSpeedZ: (Math.random() - 0.5) * 0.04,
                 });
@@ -407,26 +404,26 @@
             const envelopeGeo = new THREE.BoxGeometry(0.5, 0.8, 0.05);
 
             const goldMat = new THREE.MeshStandardMaterial({
-                color: CONFIG.colors.gold, metalness: 1.0, roughness: 0.2, emissive: 0x443300
+                color: CONFIG.colors.gold, metalness: 1.0, roughness: 0.1, emissive: 0x554411
             });
             const envMat = new THREE.MeshStandardMaterial({
                 map: envelopeTexture, metalness: 0.1, roughness: 0.8
             });
 
-            // 1. 原有的树身粒子生成 (保持不变)
+            // 1. 生成主体树干和树冠粒子
             for (let i = 0; i < CONFIG.particles.count; i++) {
                 const rand = Math.random();
                 let mesh, type;
 
-                if (rand < 0.50) {
+                if (rand < 0.75) {
                     mesh = new THREE.Mesh(coinGeo, treeCoinMat);
                     type = 'COIN';
                 }
-                else if (rand < 0.70) {
+                else if (rand < 0.85) {
                     mesh = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), goldMat);
                     type = 'RUBY';
                 }
-                else if (rand < 0.90) {
+                else if (rand < 0.95) {
                     mesh = new THREE.Mesh(envelopeGeo, envMat);
                     type = 'ENVELOPE';
                 }
@@ -440,32 +437,39 @@
                 mesh.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6);
 
                 mainGroup.add(mesh);
-                particleSystem.push(new Particle(mesh, type, false));
+                particleSystem.push(new Particle(mesh, type, false, false, false, false));
             }
 
-            // --- 修改点：在树的“底部”额外增加大量粒子，填充树根，让它看起来更茂盛 ---
-            // 增加 800 个专门填充底部的粒子
-            const bottomFillerCount = 800;
+            // 2. 底部填充
+            const bottomFillerCount = 1800;
             for(let i=0; i<bottomFillerCount; i++) {
                 const rand = Math.random();
                 let mesh, type;
+                if (rand < 0.80) { mesh = new THREE.Mesh(coinGeo, treeCoinMat); type = 'COIN'; }
+                else { mesh = new THREE.Mesh(barGeo, goldMat); type = 'GOLD_BAR'; }
+                let s = 0.6 + Math.random() * 0.7;
+                mesh.scale.set(s,s,s);
+                mesh.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6);
+                mainGroup.add(mesh);
+                particleSystem.push(new Particle(mesh, type, false, true, false, false));
+            }
 
-                // 底部多放点金币和红包，少放金条
-                if (rand < 0.60) {
-                    mesh = new THREE.Mesh(coinGeo, treeCoinMat); type = 'COIN';
-                } else if (rand < 0.85) {
-                    mesh = new THREE.Mesh(envelopeGeo, envMat); type = 'ENVELOPE';
-                } else {
-                    mesh = new THREE.Mesh(barGeo, goldMat); type = 'GOLD_BAR';
-                }
+            // 3. 内部填充粒子 (已移除)
 
-                let s = 0.6 + Math.random() * 0.6; // 稍微大一点
+            // 4. 树冠表面铺满粒子
+            const canopySurfaceCount = 6000;
+            for(let i=0; i<canopySurfaceCount; i++) {
+                const rand = Math.random();
+                let mesh, type;
+                if (rand < 0.90) { mesh = new THREE.Mesh(coinGeo, treeCoinMat); type = 'COIN'; }
+                else { mesh = new THREE.Mesh(barGeo, goldMat); type = 'GOLD_BAR'; }
+
+                let s = 0.5 + Math.random() * 0.6;
                 mesh.scale.set(s,s,s);
                 mesh.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6);
 
                 mainGroup.add(mesh);
-                // 关键：传入第4个参数 true，表示这是底部填充粒子
-                particleSystem.push(new Particle(mesh, type, false, true));
+                particleSystem.push(new Particle(mesh, type, false, false, false, true));
             }
 
             const fuGeo = new THREE.BoxGeometry(2.5, 2.5, 0.2);
@@ -553,9 +557,9 @@
         function setupPostProcessing() {
             const renderScene = new RenderPass(scene, camera);
             const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-            bloomPass.threshold = 0.85;
-            bloomPass.strength = 0.4;
-            bloomPass.radius = 0.5;
+            bloomPass.threshold = 0.92;
+            bloomPass.strength = 0.3;
+            bloomPass.radius = 0.3;
 
             composer = new EffectComposer(renderer);
             composer.addPass(renderScene);
@@ -563,15 +567,22 @@
         }
 
         class Particle {
-            // --- 修改点：构造函数增加 isBottomFiller 参数 ---
-            constructor(mesh, type, isDust, isBottomFiller = false) {
+            constructor(mesh, type, isDust, isBottomFiller = false, isCanopyFiller = false, isCanopySurface = false) {
                 this.mesh = mesh;
                 this.type = type;
                 this.isDust = isDust;
-                this.isBottomFiller = isBottomFiller; // 标记是否为底部填充物
+                this.isBottomFiller = isBottomFiller;
+                this.isCanopyFiller = isCanopyFiller;
+                this.isCanopySurface = isCanopySurface;
                 this.posTree = new THREE.Vector3();
                 this.posScatter = new THREE.Vector3();
                 this.baseScale = mesh.scale.x;
+
+                // 散开时可见性
+                // 12.5% 的概率可见
+                this.visibleInScatter = Math.random() > 0.875;
+                if (type === 'PHOTO') this.visibleInScatter = true;
+
                 this.calculatePositions();
             }
 
@@ -579,31 +590,111 @@
                 const h = CONFIG.particles.treeHeight;
                 let y, r;
 
-                // --- 修改点：如果是底部填充粒子，强制在树的下半部分生成 ---
                 if (this.isBottomFiller) {
-                    // 只在树的底部 35% 区域生成
-                    let t = Math.random() * 0.35;
-                    y = (t * h) - h/2; // 计算Y轴高度 (偏下)
-
-                    // 计算该高度对应的圆锥半径 (越往下越宽)
-                    let rMax = CONFIG.particles.treeRadius * (1.0 - t);
-
-                    // 随机填充在圆锥内部，让树心也充实
-                    r = rMax * (0.2 + Math.random() * 0.8);
-
+                    let t = Math.random();
+                    y = -h/2 + Math.pow(t, 2) * 3.0;
+                    let rMaxPile = 12.0 * (1.0 - t * 0.6);
+                    r = rMaxPile * Math.sqrt(Math.random());
                     const angle = Math.random() * Math.PI * 2;
                     this.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+
+                } else if (this.isCanopySurface) {
+                    let t = Math.random();
+                    let tn = 0.25 + t * 0.75;
+                    y = (tn * h) - h/2;
+                    let angle = Math.random() * Math.PI * 2;
+                    let rTrunk = 1.3 * (1.0 - tn * 0.4);
+                    let rCanopy = 0;
+                    let tc = (tn - 0.25) / 0.75;
+                    let baseShape = Math.sin(Math.pow(tc, 0.6) * Math.PI);
+                    rCanopy = 13.0 * baseShape;
+                    let noise = 1.0 +
+                                0.3 * Math.sin(angle * 3.0 + tn * 8.0) +
+                                0.2 * Math.cos(angle * 7.0 - tn * 10.0) +
+                                0.15 * Math.sin(angle * 12.0 + y * 2.0);
+                    rCanopy *= noise;
+                    let blend = THREE.MathUtils.smoothstep(tn, 0.25, 0.45);
+                    let rBoundary = (1.0 - blend) * rTrunk + blend * rCanopy;
+                    let angularFactor = Math.pow(Math.abs(Math.sin(angle * 3.0)), 0.4);
+                    rBoundary *= (0.7 + 0.3 * angularFactor);
+                    let fillFactor = 0.96 + Math.random() * 0.06;
+                    r = rBoundary * fillFactor;
+                    let curveX = 1.5 * Math.sin(tn * Math.PI * 2.0);
+                    let curveZ = 1.0 * Math.cos(tn * Math.PI * 1.5);
+                    let twist = tn * Math.PI * 2.5;
+                    const finalAngle = angle + twist;
+                    this.posTree.set(curveX + Math.cos(finalAngle) * r, y, curveZ + Math.sin(finalAngle) * r);
+
+                } else if (this.isCanopyFiller) {
+                    // (逻辑保留但未使用，因为外层循环已删)
+                    let t = Math.random();
+                    let tn = 0.25 + t * 0.75;
+                    y = (tn * h) - h/2;
+                    let angle = Math.random() * Math.PI * 2;
+                    let rTrunk = 1.3 * (1.0 - tn * 0.4);
+                    let rCanopy = 0;
+                    let tc = (tn - 0.25) / 0.75;
+                    let baseShape = Math.sin(Math.pow(tc, 0.6) * Math.PI);
+                    rCanopy = 13.0 * baseShape;
+                    let noise = 1.0 +
+                                0.3 * Math.sin(angle * 3.0 + tn * 8.0) +
+                                0.2 * Math.cos(angle * 7.0 - tn * 10.0) +
+                                0.15 * Math.sin(angle * 12.0 + y * 2.0);
+                    rCanopy *= noise;
+                    let blend = THREE.MathUtils.smoothstep(tn, 0.25, 0.45);
+                    let rBoundary = (1.0 - blend) * rTrunk + blend * rCanopy;
+                    let angularFactor = Math.pow(Math.abs(Math.sin(angle * 3.0)), 0.4);
+                    rBoundary *= (0.7 + 0.3 * angularFactor);
+                    let fillFactor = Math.random() * 0.95;
+                    r = rBoundary * fillFactor;
+                    let curveX = 1.5 * Math.sin(tn * Math.PI * 2.0);
+                    let curveZ = 1.0 * Math.cos(tn * Math.PI * 1.5);
+                    let twist = tn * Math.PI * 2.5;
+                    const finalAngle = angle + twist;
+                    this.posTree.set(curveX + Math.cos(finalAngle) * r, y, curveZ + Math.sin(finalAngle) * r);
+
                 } else {
-                    // 原有的正常生成逻辑
-                    let t = Math.random(); t = Math.pow(t, 0.8);
-                    y = (t * h) - h/2;
-                    let rMax = CONFIG.particles.treeRadius * (1.0 - t);
-                    const angle = t * 60 * Math.PI + Math.random() * Math.PI;
-                    r = rMax * (0.6 + Math.random() * 0.6);
-                    this.posTree.set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+                    let t = Math.random();
+                    let tn = Math.pow(t, 0.7);
+                    y = (tn * h) - h/2;
+                    let angle = Math.random() * Math.PI * 2;
+                    let rBoundary = 0;
+                    let rTrunk = 1.3 * (1.0 - tn * 0.4);
+                    let rCanopy = 0;
+                    if (tn > 0.25) {
+                        let tc = (tn - 0.25) / 0.75;
+                        let baseShape = Math.sin(Math.pow(tc, 0.6) * Math.PI);
+                        rCanopy = 13.0 * baseShape;
+                        let noise = 1.0 +
+                                    0.3 * Math.sin(angle * 3.0 + tn * 8.0) +
+                                    0.2 * Math.cos(angle * 7.0 - tn * 10.0) +
+                                    0.15 * Math.sin(angle * 12.0 + y * 2.0);
+                        rCanopy *= noise;
+                    }
+                    let blend = THREE.MathUtils.smoothstep(tn, 0.25, 0.45);
+                    rBoundary = (1.0 - blend) * rTrunk + blend * rCanopy;
+                    if (tn > 0.25) {
+                        let angularFactor = Math.pow(Math.abs(Math.sin(angle * 3.0)), 0.4);
+                        rBoundary *= (0.7 + 0.3 * angularFactor);
+                    }
+                    let fillFactor;
+                    if (tn <= 0.25) {
+                        fillFactor = Math.pow(Math.random(), 0.7);
+                    } else {
+                        if (Math.random() < 0.85) {
+                            fillFactor = 0.92 + Math.random() * 0.08;
+                        } else {
+                            fillFactor = Math.pow(Math.random(), 0.4);
+                        }
+                    }
+                    r = rBoundary * fillFactor;
+                    let curveX = 1.5 * Math.sin(tn * Math.PI * 2.0);
+                    let curveZ = 1.0 * Math.cos(tn * Math.PI * 1.5);
+                    let twist = tn * Math.PI * 2.5;
+                    const finalAngle = angle + twist;
+                    this.posTree.set(curveX + Math.cos(finalAngle) * r, y, curveZ + Math.sin(finalAngle) * r);
                 }
 
-                // 散开动画的目标位置计算 (通用逻辑)
                 if (this.type === 'PHOTO') {
                     const rScatter = 12 + Math.random() * 8;
                     const theta = Math.random() * Math.PI * 2;
@@ -640,6 +731,11 @@
                             scaleTarget = 2.0;
                         }
                     }
+                    // 散开时减少可见粒子
+                    else if (!this.visibleInScatter) {
+                        scaleTarget = 0;
+                    }
+
                     this.mesh.rotation.x += dt;
                     this.mesh.rotation.y += dt;
                 } else if (mode === 'FOCUS') {
